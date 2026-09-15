@@ -1,6 +1,6 @@
 # PIC16F84A 000-999 Counter
 
-A PIC16F84A assembly project for a push-button counter from `000` to `999`. The count is shown on three multiplexed seven-segment displays and wraps back to `000` after `999`.
+A PIC16F84A assembly project for a push-button counter from `000` to `999`. The count is shown on three multiplexed seven-segment displays and stops at `999` when the limit is reached.
 
 ![PIC16F84A counter schematic](images/proteus-schematic.png)
 
@@ -11,7 +11,7 @@ A PIC16F84A assembly project for a push-button counter from `000` to `999`. The 
 - Active-low push-button input
 - One count increment per button press
 - Automatic units, tens, and hundreds carry
-- Wraparound from `999` to `000`
+- Upper limit at `999`
 - Active-high segment and digit-enable outputs
 
 ## Hardware assumptions
@@ -32,7 +32,8 @@ The segment lookup table uses the common active-high patterns for digits `0` thr
 1. Configure `RA0` and `RA4` as inputs, `RA1`-`RA3` as outputs, and all `PORTB` pins as outputs.
 2. Detect a new active-low button press using `ButtonState`.
 3. Increment the units digit and propagate carries through tens and hundreds.
-4. Rapidly scan the three digits so they appear continuously illuminated.
+4. Ignore additional button presses once the displayed value reaches `999`.
+5. Rapidly scan the three digits so they appear continuously illuminated.
 
 ## MPLAB X project
 
