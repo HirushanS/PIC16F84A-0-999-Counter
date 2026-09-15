@@ -1,0 +1,142 @@
+; PIC16F84A: Push-button counter 000 to 999
+; Three multiplexed seven-segment displays
+; Active-HIGH segments and digit enables
+
+#include "p16f84a.inc"
+
+    __CONFIG _FOSC_HS & _WDTE_OFF & _PWRTE_OFF & _CP_OFF
+
+; Register definitions
+CounterL    equ     0Dh
+Digit1      equ     10h     ; Units
+Digit2      equ     11h     ; Tens
+Digit3      equ     12h     ; Hundreds
+ButtonState equ     13h
+
+RES_VECT CODE 0x0000
+    GOTO    START
+
+MAIN_PROG CODE
+
+START
+    ; Configure ports
+    BSF     STATUS,RP0
+    MOVLW   B'00010001'    ; RA0, RA4 inputs; RA1-RA3 outputs
+    MOVWF   TRISA
+    CLRF    TRISB         ; PORTB outputs
+    BCF     STATUS,RP0
+
+    ; Initialize outputs and variables
+    CLRF    PORTA
+    CLRF    PORTB
+    CLRF    Digit1
+    CLRF    Digit2
+    CLRF    Digit3
+    CLRF    ButtonState
+
+MainLoop
+    ; Check active-LOW button
+    BTFSC   PORTA,0
+    GOTO    ButtonNotPressed
+
+    ; Increment only on a newly detected press
+    BTFSS   ButtonState,0
+    CALL    IncrementCount
+
+    BSF     ButtonState,0
+    GOTO    DisplayDigits
+
+ButtonNotPressed
+    BCF     ButtonState,0
+
+DisplayDigits
+    ; Display units
+    CLRF    PORTA         ; Disable all digits
+    MOVF    Digit1,W
+    CALL    Table
+    MOVWF   PORTB
+    MOVLW   B'00000010'
+    MOVWF   PORTA         ; Enable RA1
+    CALL    DisplayDelay
+
+    ; Display tens
+    CLRF    PORTA
+    MOVF    Digit2,W
+    CALL    Table
+    MOVWF   PORTB
+    MOVLW   B'00000100'
+    MOVWF   PORTA         ; Enable RA2
+    CALL    DisplayDelay
+
+    ; Display hundreds
+    CLRF    PORTA
+    MOVF    Digit3,W
+    CALL    Table
+    MOVWF   PORTB
+    MOVLW   B'00001000'
+    MOVWF   PORTA         ; Enable RA3
+    CALL    DisplayDelay
+
+    GOTO    MainLoop
+
+IncrementCount
+    ; Increment units
+    INCF    Digit1,F
+    MOVLW   D'10'
+    XORWF   Digit1,W
+    BTFSS   STATUS,Z
+    RETURN
+
+    ; Carry to tens
+    CLRF    Digit1
+    INCF    Digit2,F
+    MOVLW   D'10'
+    XORWF   Digit2,W
+    BTFSS   STATUS,Z
+    RETURN
+
+    ; Carry to hundreds
+    CLRF    Digit2
+    INCF    Digit3,F
+    MOVLW   D'10'
+    XORWF   Digit3,W
+    BTFSS   STATUS,Z
+    RETURN
+
+    ; Wrap from 999 to 000
+    CLRF    Digit3
+    RETURN
+
+DisplayDelay
+    MOVLW   D'255'
+    MOVWF   CounterL
+DelayLoop
+    DECFSZ  CounterL,F
+    GOTO    DelayLoop
+    RETURN
+
+; Fixed location keeps the lookup table within one
+; 256-word program-memory page.
+SEGMENT_TABLE CODE 0x0100
+
+Table
+    ; Preserve digit value while setting table page
+    MOVWF   CounterL
+    MOVLW   HIGH SegmentLookup
+    MOVWF   PCLATH
+    MOVF    CounterL,W
+
+SegmentLookup
+    ADDWF   PCL,F
+    RETLW   B'00111111'    ; 0
+    RETLW   B'00000110'    ; 1
+    RETLW   B'01011011'    ; 2
+    RETLW   B'01001111'    ; 3
+    RETLW   B'01100110'    ; 4
+    RETLW   B'01101101'    ; 5
+    RETLW   B'01111101'    ; 6
+    RETLW   B'00000111'    ; 7
+    RETLW   B'01111111'    ; 8
+    RETLW   B'01101111'    ; 9
+
+    END
